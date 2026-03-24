@@ -63,11 +63,11 @@ def peaked_arrh(k25, Ea, Tk, deltaS, Hd, RGAS):
 # Constants
 RGAS = 8.314  # J mol-1 K-1
 
-# Activation energies (J/mol)
+# Activation energies (J mol-1)
 Eav = 30000.0
 Eaj = 60000.0
 
-# Deactivation energies (J/mol)
+# Deactivation energies (J mol-1)
 Hdv = 200000.0
 Hdj = 200000.0
 
