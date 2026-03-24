@@ -1,71 +1,32 @@
 import math
+from scipy.optimize import fsolve
 
-def arrh(k25, Ea, Tk, RGAS):
-    """ Temperature dependence of kinetic parameters is described by an
-    Arrhenius function.
+def arrh_to_25(k25, Ea, Tk, RGAS, Tref=298.15):
+    """ Standard Arrhenius correction """
+    return k25 / math.exp((Ea * (Tk - Tref)) / (Tref * RGAS * Tk))
 
-    Parameters:
-    ----------
-    k25 : float
-        rate parameter value at 25 degC or 298 K
-    Ea : float
-        activation energy for the parameter [J mol-1]
-    Tk : float
-        leaf temperature [deg K]
-
-    Returns:
-    -------
-    kt : float
-        temperature dependence on parameter
-
-    References:
-    -----------
-    * Medlyn et al. 2002, PCE, 25, 1167-1179.
-    """
-    return k25 * math.exp((Ea * (Tk - 298.15)) / (298.15 * RGAS * Tk))
-
-
+# Peaked Arrhenius forward function
 def peaked_arrh(k25, Ea, Tk, deltaS, Hd, RGAS):
-    """ Temperature dependancy approximated by peaked Arrhenius eqn,
-    accounting for the rate of inhibition at higher temperatures.
-
-    Parameters:
-    ----------
-    k25 : float
-        rate parameter value at 25 degC or 298 K
-    Ea : float
-        activation energy for the parameter [J mol-1]
-    Tk : float
-        leaf temperature [deg K]
-    deltaS : float
-        entropy factor [J mol-1 K-1)
-    Hd : float
-        describes rate of decrease about the optimum temp [J mol-1]
-
-    Returns:
-    -------
-    kt : float
-        temperature dependence on parameter
-
-    References:
-    -----------
-    * Medlyn et al. 2002, PCE, 25, 1167-1179.
-
-    """
-    arg1 = arrh(k25, Ea, Tk, RGAS)
+    arg1 = k25 * math.exp((Ea * (Tk - 298.15)) / (298.15 * RGAS * Tk))
     arg2 = 1.0 + math.exp((298.15 * deltaS - Hd) / (298.15 * RGAS))
     arg3 = 1.0 + math.exp((Tk * deltaS - Hd) / (Tk * RGAS))
-
     return arg1 * arg2 / arg3
 
-
+# Peaked Arrhenius inversion to find k25
+def peaked_arrh_to_25(V_T, Ea, Tk, deltaS, Hd, RGAS):
+    """Invert peaked Arrhenius to get k25 from measurement at Tk."""
+    def func(k25):
+        return peaked_arrh(k25, Ea, Tk, deltaS, Hd, RGAS) - V_T
+    k25_guess = V_T  # initial guess
+    k25_solution, = fsolve(func, k25_guess)
+    return k25_solution
 
 # Constants
 RGAS = 8.314  # J mol-1 K-1
 
 # Activation energies (J mol-1)
-Eav = 30000.0
-Eaj = 60000.0
+Eav = 60000.0
+Eaj = 30000.0
 
 # Deactivation energies (J mol-1)
 Hdv = 200000.0
@@ -76,7 +37,7 @@ Svv = 650.0
 Svj = 650.0
 
 # Leaf temperature
-Tleaf_C = 20.0
+Tleaf_C = 23.0
 Tleaf_K = Tleaf_C + 273.15
 Tref_K = 298.15  # 25°C
 
@@ -86,13 +47,13 @@ JmaxT = 80.0
 
 # If your dataset is mostly around 15-30 deg C, standard Arrhenius is
 # probably fine.
-Vcmax25 = arrh(VcmaxT, Eav, Tleaf_K, RGAS)
-Jmax25 = arrh(JmaxT, Eaj, Tleaf_K, RGAS)
+Vcmax25 = arrh_to_25(VcmaxT, Eav, Tleaf_K, RGAS)
+Jmax25 = arrh_to_25(JmaxT, Eaj, Tleaf_K, RGAS)
 
 # Peaked version accounts for the high-temperature decline in Vcmax,
 # better for leaf temperatures >30 degC, but needs extra parameters
-Vcmax25_peak = peaked_arrh(VcmaxT, Eav, Tleaf_K, Svv, Hdv,  RGAS)
-Jmax25_peak = peaked_arrh(JmaxT, Eaj, Tleaf_K, Svj, Hdj,  RGAS)
+Vcmax25_peak = peaked_arrh_to_25(VcmaxT, Eav, Tleaf_K, Svv, Hdv,  RGAS)
+Jmax25_peak = peaked_arrh_to_25(JmaxT, Eaj, Tleaf_K, Svj, Hdj,  RGAS)
 
 print("Measurement at leaf T")
 print("VcmaxT =", VcmaxT)
